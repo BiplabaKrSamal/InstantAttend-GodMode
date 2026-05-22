@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InstantAttend — Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --success: #10b981;
+      --danger: #ef4444;
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card2: #16213e;
+      --border: #2d2d4e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; }
+
+    /* Navbar */
+    .navbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 2rem; }
+    .navbar-brand { font-size: 1.4rem; font-weight: 700; color: var(--primary-light) !important; }
+    .navbar-brand span { color: #a78bfa; }
+    .live-dot { width:10px; height:10px; background:#10b981; border-radius:50%; display:inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+    /* Stats Cards */
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius:16px; padding:1.5rem; transition:transform .2s; }
+    .stat-card:hover { transform:translateY(-3px); }
+    .stat-icon { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
+    .stat-val { font-size:2.2rem; font-weight:800; }
+    .stat-label { color:var(--muted); font-size:.85rem; margin-top:.2rem; }
+
+    /* Table */
+    .attendance-table { background: var(--card); border-radius:16px; border: 1px solid var(--border); overflow:hidden; }
+    .attendance-table thead { background: var(--card2); }
+    .attendance-table th { color: var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; padding:.9rem 1.2rem; border:none; }
+    .attendance-table td { padding:.9rem 1.2rem; border-color: var(--border); color: var(--text); vertical-align:middle; }
+    .badge-present { background: rgba(16,185,129,.15); color:#10b981; border-radius:20px; padding:.3rem .8rem; font-size:.78rem; font-weight:600; }
+
+    /* Buttons */
+    .btn-primary-grad {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border:none; color:#fff; border-radius:10px; padding:.7rem 1.4rem; font-weight:600;
+      transition:.2s; box-shadow:0 4px 15px rgba(79,70,229,.3);
+    }
+    .btn-primary-grad:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(79,70,229,.5); color:#fff; }
+    .btn-success-grad {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border:none; color:#fff; border-radius:10px; padding:.7rem 1.4rem; font-weight:600; transition:.2s;
+    }
+    .btn-success-grad:hover { transform:translateY(-2px); color:#fff; }
+    .btn-outline-light2 { border:1px solid var(--border); color:var(--muted); border-radius:10px; padding:.5rem 1rem; background:transparent; transition:.2s; }
+    .btn-outline-light2:hover { background:var(--border); color:var(--text); }
+
+    /* Form */
+    .form-card { background: var(--card); border:1px solid var(--border); border-radius:16px; padding:1.8rem; }
+    .form-control-dark {
+      background: var(--card2); border: 1px solid var(--border); color:var(--text);
+      border-radius:10px; padding:.7rem 1rem;
+    }
+    .form-control-dark:focus { background:var(--card2); color:var(--text); border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,.25); }
+
+    /* Toast */
+    .toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; }
+    .live-toast { background:var(--card); border:1px solid var(--success); border-radius:12px; padding:1rem 1.4rem; margin-top:.5rem;
+                  animation: slideIn .3s ease; }
+    @keyframes slideIn { from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    /* Chart */
+    .chart-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; }
+
+    /* No model alert */
+    .no-model-banner { background: linear-gradient(135deg,#7c3aed22,#4f46e522); border:1px solid #7c3aed55; border-radius:12px; padding:1rem 1.5rem; }
+
+    /* Row flash on new attendance */
+    .row-flash { animation: rowGlow .8s ease; }
+    @keyframes rowGlow { 0%{background:rgba(16,185,129,.3)} 100%{background:transparent} }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar d-flex justify-content-between align-items-center">
+  <div class="d-flex align-items-center gap-3">
+    <span class="navbar-brand mb-0"><i class="fa-solid fa-camera-retro me-2"></i>Instant<span>Attend</span></span>
+    <span class="d-flex align-items-center gap-2" style="font-size:.82rem; color:var(--muted)">
+      <span class="live-dot"></span> Live
+    </span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span style="color:var(--muted); font-size:.85rem;"><i class="fa-regular fa-calendar me-1"></i>{{ datetoday2 }}</span>
+    <a href="/admin" class="btn-outline-light2 btn ms-2"><i class="fa-solid fa-sliders me-1"></i>Admin</a>
+  </div>
+</nav>
+
+<div class="container-fluid px-4 py-4" style="max-width:1400px">
+
+  {% if not model_ready %}
+  <div class="no-model-banner mb-4 d-flex align-items-center gap-3">
+    <i class="fa-solid fa-triangle-exclamation" style="color:#a78bfa; font-size:1.3rem"></i>
+    <div>
+      <strong>No model trained yet.</strong>
+      <span style="color:var(--muted)"> Register your first user below to get started — the model will train automatically.</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Stats Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="stat-val text-primary" id="stat-present">{{ stats.present_today }}</div>
+            <div class="stat-label">Present Today</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(79,70,229,.15)">
+            <i class="fa-solid fa-user-check" style="color:#6366f1"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="stat-val" style="color:#10b981">{{ stats.total_users }}</div>
+            <div class="stat-label">Registered Users</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(16,185,129,.15)">
+            <i class="fa-solid fa-users" style="color:#10b981"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="stat-val" style="color:#f59e0b">{{ stats.total_records }}</div>
+            <div class="stat-label">Total Records</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(245,158,11,.15)">
+            <i class="fa-solid fa-database" style="color:#f59e0b"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="stat-val" style="color:#a78bfa">
+              {% if stats.total_users > 0 %}{{ ((stats.present_today / stats.total_users) * 100)|int }}%{% else %}—{% endif %}
+            </div>
+            <div class="stat-label">Attendance Rate</div>
+          </div>
+          <div class="stat-icon" style="background:rgba(167,139,250,.15)">
+            <i class="fa-solid fa-chart-pie" style="color:#a78bfa"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left: Attendance Table -->
+    <div class="col-lg-8">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-700"><i class="fa-solid fa-list-check me-2" style="color:#6366f1"></i>Today's Attendance</h5>
+        <div class="d-flex gap-2">
+          <a href="/export/csv" class="btn btn-outline-light2 btn-sm"><i class="fa-solid fa-file-csv me-1"></i>CSV</a>
+          <a href="/export/excel" class="btn btn-outline-light2 btn-sm"><i class="fa-solid fa-file-excel me-1"></i>Excel</a>
+          {% if model_ready %}
+          <a href="/start" class="btn btn-success-grad btn-sm"><i class="fa-solid fa-play me-1"></i>Take Attendance</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="attendance-table">
+        <table class="table table-dark table-hover mb-0" id="attendance-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Roll No.</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="attendance-body">
+            {% if records %}
+              {% for r in records %}
+              <tr>
+                <td style="color:var(--muted)">{{ loop.index }}</td>
+                <td><i class="fa-solid fa-circle-user me-2" style="color:#6366f1"></i>{{ r.name }}</td>
+                <td><code style="color:#a78bfa">{{ r.roll }}</code></td>
+                <td><i class="fa-regular fa-clock me-1" style="color:var(--muted)"></i>{{ r.time }}</td>
+                <td><span class="badge-present">{{ r.status }}</span></td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr id="empty-row">
+                <td colspan="5" class="text-center py-5" style="color:var(--muted)">
+                  <i class="fa-solid fa-camera-slash fa-2x mb-3 d-block"></i>
+                  No attendance marked yet today.<br>
+                  <small>Click <strong>Take Attendance</strong> to start.</small>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Weekly Chart -->
+      <div class="chart-card mt-4">
+        <h6 class="mb-3" style="color:var(--muted)"><i class="fa-solid fa-chart-bar me-2"></i>7-Day Attendance</h6>
+        <canvas id="weeklyChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <!-- Right: Add User + Actions -->
+    <div class="col-lg-4">
+      <!-- Take Attendance -->
+      {% if model_ready %}
+      <div class="form-card mb-4 text-center">
+        <div style="font-size:3rem; margin-bottom:1rem">🎯</div>
+        <h5 class="fw-bold mb-2">Start Recognition</h5>
+        <p style="color:var(--muted); font-size:.88rem" class="mb-3">Point your webcam and attendance marks automatically in real-time.</p>
+        <a href="/start" class="btn btn-success-grad w-100">
+          <i class="fa-solid fa-video me-2"></i>Launch Webcam
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Register User -->
+      <div class="form-card">
+        <h5 class="fw-bold mb-1"><i class="fa-solid fa-user-plus me-2" style="color:#6366f1"></i>Register User</h5>
+        <p style="color:var(--muted); font-size:.82rem" class="mb-3">Webcam captures 50 face samples automatically.</p>
+        <form method="POST" action="/add">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.85rem; color:var(--muted)">Full Name</label>
+            <input type="text" name="newusername" class="form-control form-control-dark" placeholder="e.g. Biplaba Samal" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.85rem; color:var(--muted)">Roll / ID Number</label>
+            <input type="text" name="newuserid" class="form-control form-control-dark" placeholder="e.g. 2101" required/>
+          </div>
+          <button type="submit" class="btn btn-primary-grad w-100">
+            <i class="fa-solid fa-camera me-2"></i>Capture & Register
+          </button>
+        </form>
+      </div>
+
+      <!-- API Quick Ref -->
+      <div class="form-card mt-4">
+        <h6 class="mb-3" style="color:var(--muted)"><i class="fa-solid fa-code me-2"></i>REST API</h6>
+        <div style="font-size:.78rem; font-family:monospace; color:#a78bfa; line-height:1.8">
+          <div>GET /api/attendance/today</div>
+          <div>GET /api/attendance/YYYY-MM-DD</div>
+          <div>GET /api/users</div>
+          <div>GET /api/stats</div>
+          <div>GET /export/csv</div>
+          <div>GET /export/excel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Live Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // Weekly Chart
+  const weeklyData = {{ stats.weekly | tojson }};
+  const labels = weeklyData.map(d => d.date.slice(5));
+  const counts = weeklyData.map(d => d.count);
+  new Chart(document.getElementById('weeklyChart'), {
+    type: 'bar',
+    data: {
+      labels, datasets: [{
+        label: 'Present',
+        data: counts,
+        backgroundColor: 'rgba(99,102,241,.6)',
+        borderColor: '#6366f1',
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#2d2d4e' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: '#2d2d4e' }, ticks: { color: '#94a3b8', stepSize: 1 } }
+      }
+    }
+  });
+
+  // WebSocket Real-Time
+  const socket = io();
+  let rowCount = document.querySelectorAll('#attendance-body tr').length;
+
+  socket.on('attendance_update', data => {
+    const empty = document.getElementById('empty-row');
+    if (empty) empty.remove();
+
+    rowCount++;
+    const tbody = document.getElementById('attendance-body');
+    const tr = document.createElement('tr');
+    tr.classList.add('row-flash');
+    tr.innerHTML = `
+      <td style="color:var(--muted)">${rowCount}</td>
+      <td><i class="fa-solid fa-circle-user me-2" style="color:#6366f1"></i>${data.name}</td>
+      <td><code style="color:#a78bfa">${data.roll}</code></td>
+      <td><i class="fa-regular fa-clock me-1" style="color:var(--muted)"></i>${data.time}</td>
+      <td><span class="badge-present">Present</span></td>
+    `;
+    tbody.prepend(tr);
+
+    // Update stat
+    const el = document.getElementById('stat-present');
+    el.textContent = parseInt(el.textContent) + 1;
+
+    // Toast
+    const toast = document.createElement('div');
+    toast.className = 'live-toast';
+    toast.innerHTML = `<i class="fa-solid fa-check-circle me-2" style="color:#10b981"></i><strong>${data.name}</strong> marked present at ${data.time}`;
+    document.getElementById('toast-container').appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  });
+</script>
+</body>
+</html>
