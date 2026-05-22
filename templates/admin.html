@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InstantAttend — Admin Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary:#4f46e5; --bg:#0f0f1a; --card:#1a1a2e; --card2:#16213e;
+      --border:#2d2d4e; --text:#e2e8f0; --muted:#94a3b8;
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; }
+    .navbar { background:var(--card); border-bottom:1px solid var(--border); padding:1rem 2rem; }
+    .navbar-brand { font-size:1.4rem; font-weight:700; color:#a78bfa !important; }
+    .card-dark { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+    .table-dark { --bs-table-bg:transparent; }
+    th { color:var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; border-color:var(--border)!important; }
+    td { border-color:var(--border)!important; color:var(--text); vertical-align:middle; }
+    .btn-danger-sm { background:rgba(239,68,68,.15); border:1px solid #ef444455; color:#ef4444; border-radius:8px; padding:.3rem .7rem; font-size:.78rem; transition:.2s; }
+    .btn-danger-sm:hover { background:#ef4444; color:#fff; }
+    .stat-mini { background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:1rem 1.4rem; }
+    .back-btn { border:1px solid var(--border); color:var(--muted); border-radius:10px; padding:.5rem 1rem; background:transparent; text-decoration:none; font-size:.88rem; transition:.2s; }
+    .back-btn:hover { background:var(--border); color:var(--text); }
+  </style>
+</head>
+<body>
+<nav class="navbar d-flex justify-content-between align-items-center">
+  <span class="navbar-brand mb-0"><i class="fa-solid fa-sliders me-2"></i>Admin Panel</span>
+  <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left me-1"></i>Dashboard</a>
+</nav>
+
+<div class="container-fluid px-4 py-4" style="max-width:1200px">
+  <!-- Mini Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="stat-mini"><div style="font-size:1.8rem;font-weight:800;color:#6366f1">{{ stats.total_users }}</div><div style="color:var(--muted);font-size:.85rem">Registered Users</div></div></div>
+    <div class="col-md-3"><div class="stat-mini"><div style="font-size:1.8rem;font-weight:800;color:#10b981">{{ stats.present_today }}</div><div style="color:var(--muted);font-size:.85rem">Present Today</div></div></div>
+    <div class="col-md-3"><div class="stat-mini"><div style="font-size:1.8rem;font-weight:800;color:#f59e0b">{{ stats.total_records }}</div><div style="color:var(--muted);font-size:.85rem">Total Records</div></div></div>
+    <div class="col-md-3">
+      <div class="stat-mini d-flex align-items-center gap-3 h-100">
+        <a href="/export/excel" class="btn w-100" style="background:rgba(16,185,129,.15);border:1px solid #10b98155;color:#10b981;border-radius:10px">
+          <i class="fa-solid fa-file-excel me-1"></i> Export Excel
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Registered Users -->
+    <div class="col-lg-5">
+      <h5 class="mb-3 fw-bold"><i class="fa-solid fa-users me-2" style="color:#6366f1"></i>Registered Users</h5>
+      <div class="card-dark">
+        <table class="table table-dark table-hover mb-0">
+          <thead><tr><th>Name</th><th>Roll</th><th>Registered</th><th></th></tr></thead>
+          <tbody>
+          {% for u in users %}
+          <tr>
+            <td><i class="fa-solid fa-circle-user me-2" style="color:#6366f1"></i>{{ u.name }}</td>
+            <td><code style="color:#a78bfa">{{ u.roll }}</code></td>
+            <td style="color:var(--muted);font-size:.8rem">{{ u.created[:10] }}</td>
+            <td>
+              <form method="POST" action="/delete_user/{{ u.roll }}" onsubmit="return confirm('Delete {{ u.name }}?')">
+                <button type="submit" class="btn-danger-sm"><i class="fa-solid fa-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center py-4" style="color:var(--muted)">No users registered yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Attendance History -->
+    <div class="col-lg-7">
+      <h5 class="mb-3 fw-bold"><i class="fa-solid fa-clock-rotate-left me-2" style="color:#f59e0b"></i>Recent Attendance (Last 100)</h5>
+      <div class="card-dark" style="max-height:500px;overflow-y:auto">
+        <table class="table table-dark table-hover mb-0">
+          <thead style="position:sticky;top:0;background:var(--card2)"><tr><th>Name</th><th>Roll</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for h in history %}
+          <tr>
+            <td>{{ h.name }}</td>
+            <td><code style="color:#a78bfa">{{ h.roll }}</code></td>
+            <td style="color:var(--muted)">{{ h.date }}</td>
+            <td style="color:var(--muted)">{{ h.time }}</td>
+            <td><span style="background:rgba(16,185,129,.15);color:#10b981;border-radius:20px;padding:.2rem .7rem;font-size:.78rem">{{ h.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center py-4" style="color:var(--muted)">No records yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
