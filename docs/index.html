@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>InstantAttend — AI-Powered Attendance System</title>
+<meta name="description" content="Real-time face recognition attendance system. Zero manual effort. Marks attendance automatically via webcam."/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--indigo:#4f46e5;--purple:#7c3aed;--emerald:#10b981;--bg:#0a0a12;--card:#13131f;--border:#1e1e30;--text:#e2e8f0;--muted:#94a3b8}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden}
+
+  /* Hero */
+  .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(79,70,229,.25),transparent);pointer-events:none}
+  .badge-pill{display:inline-flex;align-items:center;gap:.5rem;background:rgba(79,70,229,.15);border:1px solid rgba(79,70,229,.4);border-radius:40px;padding:.4rem 1.2rem;font-size:.82rem;color:#a78bfa;margin-bottom:2rem}
+  .badge-dot{width:6px;height:6px;background:#10b981;border-radius:50%;animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+
+  h1{font-size:clamp(2.8rem,8vw,5.5rem);font-weight:900;line-height:1.05;letter-spacing:-.03em;margin-bottom:1.5rem}
+  h1 .grad{background:linear-gradient(135deg,#818cf8,#a78bfa,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .subtitle{font-size:clamp(1rem,2.5vw,1.25rem);color:var(--muted);max-width:600px;line-height:1.7;margin-bottom:2.5rem}
+  .hero-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-bottom:4rem}
+  .btn-hero{padding:.85rem 2rem;border-radius:12px;font-weight:700;font-size:1rem;text-decoration:none;transition:.25s;display:inline-flex;align-items:center;gap:.5rem}
+  .btn-primary{background:linear-gradient(135deg,var(--indigo),var(--purple));color:#fff;box-shadow:0 0 30px rgba(79,70,229,.4)}
+  .btn-primary:hover{transform:translateY(-3px);box-shadow:0 0 40px rgba(79,70,229,.6);color:#fff}
+  .btn-ghost{border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .btn-ghost:hover{border-color:#4f46e5;color:var(--text)}
+
+  /* Dashboard preview */
+  .preview-wrapper{position:relative;max-width:900px;width:100%;margin:0 auto}
+  .preview-glow{position:absolute;inset:-40px;background:radial-gradient(ellipse at center,rgba(79,70,229,.3),transparent 70%);pointer-events:none;z-index:0}
+  .preview-frame{background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;position:relative;z-index:1;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+  .preview-bar{background:#1a1a2e;padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border)}
+  .dot{width:12px;height:12px;border-radius:50%}
+  .preview-body{padding:1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .mock-stat{background:#0f0f1a;border:1px solid var(--border);border-radius:12px;padding:1rem}
+  .mock-val{font-size:1.8rem;font-weight:800}
+  .mock-label{font-size:.75rem;color:var(--muted);margin-top:.2rem}
+  .mock-table{margin:0 1.5rem 1.5rem;background:#0f0f1a;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .mock-row{display:flex;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;align-items:center}
+  .mock-row:last-child{border-bottom:none}
+  .mock-badge{background:rgba(16,185,129,.15);color:#10b981;border-radius:20px;padding:.2rem .6rem;font-size:.7rem;font-weight:700}
+
+  /* Features */
+  section{padding:6rem 2rem}
+  .section-label{color:#a78bfa;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:1rem}
+  h2{font-size:clamp(2rem,5vw,3rem);font-weight:800;line-height:1.1;margin-bottom:1.2rem}
+  .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:1100px;margin:0 auto;margin-top:3rem}
+  .feat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:1.8rem;transition:.25s}
+  .feat-card:hover{border-color:#4f46e5;transform:translateY(-4px);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+  .feat-icon{font-size:2rem;margin-bottom:1rem}
+  .feat-title{font-size:1.1rem;font-weight:700;margin-bottom:.6rem}
+  .feat-desc{color:var(--muted);font-size:.9rem;line-height:1.6}
+
+  /* Tech Stack */
+  .stack-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:1rem;margin-top:2.5rem}
+  .tech-chip{background:var(--card);border:1px solid var(--border);border-radius:40px;padding:.5rem 1.2rem;font-size:.85rem;color:var(--text);display:flex;align-items:center;gap:.5rem}
+
+  /* CTA */
+  .cta-section{text-align:center;padding:6rem 2rem;background:radial-gradient(ellipse 60% 80% at 50% 50%,rgba(79,70,229,.12),transparent)}
+  .cta-card{background:linear-gradient(135deg,rgba(79,70,229,.15),rgba(124,58,237,.15));border:1px solid rgba(79,70,229,.3);border-radius:24px;padding:4rem;max-width:700px;margin:0 auto}
+
+  /* Architecture */
+  .arch-flow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.5rem;margin-top:2.5rem;max-width:900px;margin-left:auto;margin-right:auto}
+  .arch-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.3rem;font-size:.85rem;text-align:center}
+  .arch-arrow{color:var(--muted);font-size:1.2rem}
+
+  /* Footer */
+  footer{text-align:center;padding:2rem;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+  footer a{color:#a78bfa;text-decoration:none}
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav style="position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,18,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center">
+  <span style="font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🎯 InstantAttend</span>
+  <div style="display:flex;gap:1rem;align-items:center">
+    <a href="https://github.com/BiplabaKrSamal/InstantAttend" style="color:var(--muted);text-decoration:none;font-size:.88rem">GitHub</a>
+    <a href="https://github.com/BiplabaKrSamal/InstantAttend" class="btn-hero btn-primary" style="padding:.5rem 1.2rem;font-size:.88rem">⭐ Star</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" style="padding-top:80px">
+  <div class="badge-pill"><span class="badge-dot"></span> v2.0 — Real-Time Face Recognition Attendance</div>
+  <h1>Attendance.<br>Now <span class="grad">Instant.</span></h1>
+  <p class="subtitle">Real-time face recognition that marks attendance automatically the moment a face is detected. No roll calls. No friction. No delays.</p>
+  <div class="hero-btns">
+    <a href="https://github.com/BiplabaKrSamal/InstantAttend" class="btn-hero btn-primary">🚀 Get Started on GitHub</a>
+    <a href="#features" class="btn-hero btn-ghost">✨ See Features</a>
+  </div>
+
+  <!-- Dashboard Mock -->
+  <div class="preview-wrapper">
+    <div class="preview-glow"></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <div class="dot" style="background:#ef4444"></div>
+        <div class="dot" style="background:#f59e0b"></div>
+        <div class="dot" style="background:#10b981"></div>
+        <span style="color:var(--muted);font-size:.78rem;margin-left:.5rem">InstantAttend Dashboard — localhost:5000</span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:#10b981">
+          <span style="width:6px;height:6px;background:#10b981;border-radius:50%;animation:pulse 1.5s infinite;display:inline-block"></span>Live
+        </span>
+      </div>
+      <div class="preview-body">
+        <div class="mock-stat"><div class="mock-val" style="color:#6366f1">23</div><div class="mock-label">Present Today</div></div>
+        <div class="mock-stat"><div class="mock-val" style="color:#10b981">30</div><div class="mock-label">Registered Users</div></div>
+        <div class="mock-stat"><div class="mock-val" style="color:#f59e0b">1,247</div><div class="mock-label">Total Records</div></div>
+        <div class="mock-stat"><div class="mock-val" style="color:#a78bfa">77%</div><div class="mock-label">Attendance Rate</div></div>
+      </div>
+      <div class="mock-table">
+        <div class="mock-row" style="background:#1a1a2e;color:var(--muted);font-size:.72rem;text-transform:uppercase">
+          <span>Name</span><span>Roll</span><span>Time</span><span>Status</span>
+        </div>
+        <div class="mock-row"><span>🔵 Biplaba Samal</span><span style="color:#a78bfa">2101</span><span style="color:var(--muted)">09:03:12</span><span class="mock-badge">Present</span></div>
+        <div class="mock-row"><span>🔵 Ananya Roy</span><span style="color:#a78bfa">2102</span><span style="color:var(--muted)">09:05:44</span><span class="mock-badge">Present</span></div>
+        <div class="mock-row"><span>🔵 Rahul Das</span><span style="color:#a78bfa">2103</span><span style="color:var(--muted)">09:07:01</span><span class="mock-badge">Present</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features" style="text-align:center">
+  <div class="section-label">Everything you need</div>
+  <h2>Built for real classrooms.<br>Powered by real AI.</h2>
+  <div class="features-grid">
+    <div class="feat-card"><div class="feat-icon">🎥</div><div class="feat-title">Live Face Detection</div><div class="feat-desc">OpenCV Haar Cascade detects faces in real-time at 30fps from any webcam, even in varied lighting.</div></div>
+    <div class="feat-card"><div class="feat-icon">🧠</div><div class="feat-title">KNN Recognition</div><div class="feat-desc">Scikit-learn KNN model trained on 50 face samples per user. Instant identification with zero cloud dependency.</div></div>
+    <div class="feat-card"><div class="feat-icon">⚡</div><div class="feat-title">Real-Time WebSocket</div><div class="feat-desc">Dashboard updates live the moment attendance is marked — no page refresh needed, powered by Flask-SocketIO.</div></div>
+    <div class="feat-card"><div class="feat-icon">🗄️</div><div class="feat-title">SQLite Database</div><div class="feat-desc">Durable SQLite backend replaces CSV with structured querying, history, and UNIQUE constraints per day.</div></div>
+    <div class="feat-card"><div class="feat-icon">📊</div><div class="feat-title">REST API</div><div class="feat-desc">Full JSON API: GET today's records, history by date, user list, stats — integrate with any system.</div></div>
+    <div class="feat-card"><div class="feat-icon">📁</div><div class="feat-title">Export: CSV + Excel</div><div class="feat-desc">One-click export to CSV or XLSX with all attendance data, perfect for reports and institutional records.</div></div>
+    <div class="feat-card"><div class="feat-icon">👤</div><div class="feat-title">Admin Panel</div><div class="feat-desc">Full user management: view all registered users, delete users, see attendance history, and export reports.</div></div>
+    <div class="feat-card"><div class="feat-icon">🐳</div><div class="feat-title">Docker Ready</div><div class="feat-desc">One command deployment with Docker Compose. Zero environment setup. Works everywhere Python runs.</div></div>
+    <div class="feat-card"><div class="feat-icon">🔄</div><div class="feat-title">GitHub Actions CI/CD</div><div class="feat-desc">Automated testing on every push. Linting, import checks, and deployment pipeline baked in from day one.</div></div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section style="text-align:center;background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="section-label">How it works</div>
+  <h2>From webcam to database<br>in milliseconds.</h2>
+  <div class="arch-flow">
+    <div class="arch-box">📷 Webcam Input</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">Haar Cascade<br>Face Detection</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">Grayscale +<br>50×50 Resize</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">KNN Model<br>Identification</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">SQLite<br>Write</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box">⚡ WebSocket<br>Live Update</div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section style="text-align:center">
+  <div class="section-label">Tech Stack</div>
+  <h2>Best-in-class tools,<br>zero overhead.</h2>
+  <div class="stack-grid">
+    <div class="tech-chip">🐍 Python 3.10+</div>
+    <div class="tech-chip">⚗️ Flask 2.x</div>
+    <div class="tech-chip">⚡ Flask-SocketIO</div>
+    <div class="tech-chip">👁️ OpenCV 4.x</div>
+    <div class="tech-chip">🤖 scikit-learn KNN</div>
+    <div class="tech-chip">🗄️ SQLite</div>
+    <div class="tech-chip">🐼 Pandas</div>
+    <div class="tech-chip">🎨 Bootstrap 5</div>
+    <div class="tech-chip">🐳 Docker</div>
+    <div class="tech-chip">⚙️ GitHub Actions</div>
+  </div>
+</section>
+
+<!-- Quick Start -->
+<section style="text-align:center">
+  <div class="section-label">Quick Start</div>
+  <h2>Three commands.<br>You're live.</h2>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:600px;margin:2rem auto 0;text-align:left;font-family:monospace">
+    <div style="color:var(--muted);font-size:.78rem;margin-bottom:1rem">TERMINAL</div>
+    <div style="color:#10b981">$ git clone https://github.com/BiplabaKrSamal/InstantAttend</div>
+    <div style="color:#10b981;margin-top:.5rem">$ pip install -r requirements.txt</div>
+    <div style="color:#10b981;margin-top:.5rem">$ python app.py</div>
+    <div style="color:var(--muted);margin-top:1rem;font-size:.85rem"># Open http://127.0.0.1:5000 🚀</div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="cta-card">
+    <div style="font-size:3rem;margin-bottom:1rem">🎯</div>
+    <h2 style="margin-bottom:1rem">Ready to eliminate roll calls?</h2>
+    <p style="color:var(--muted);margin-bottom:2rem;line-height:1.7">InstantAttend is open source, production-ready, and free forever. Star the repo to stay updated with new releases.</p>
+    <a href="https://github.com/BiplabaKrSamal/InstantAttend" class="btn-hero btn-primary">⭐ Star on GitHub</a>
+  </div>
+</div>
+
+<footer>
+  <p>Made with ❤️ by <a href="https://github.com/BiplabaKrSamal">BiplabaKrSamal</a> · MIT License · <a href="https://github.com/BiplabaKrSamal/InstantAttend">InstantAttend</a></p>
+</footer>
+
+</body>
+</html>
