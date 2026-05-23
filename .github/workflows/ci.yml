@@ -1,0 +1,66 @@
+name: 🎯 InstantAttend CI/CD
+
+on:
+  push:
+    branches: [main, godmode]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: 🧪 Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install system deps
+        run: sudo apt-get install -y libgl1 libglib2.0-0
+      - name: Install Python deps
+        run: |
+          pip install --upgrade pip
+          sed 's/opencv-python/opencv-python-headless/' requirements.txt > req_ci.txt
+          pip install -r req_ci.txt pytest flake8
+      - name: Lint
+        run: flake8 app.py --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Test
+        run: pytest tests/ -v --tb=short
+
+  deploy-pages:
+    name: 🌐 Deploy GitHub Pages
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  docker-build:
+    name: 🐳 Docker Build Check
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t instantattend:${{ github.sha }} .
+      - name: Smoke test
+        run: |
+          docker run -d --name ia_test -p 5000:5000 instantattend:${{ github.sha }}
+          sleep 8
+          curl -f http://localhost:5000/api/stats || exit 1
+          docker stop ia_test
